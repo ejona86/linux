@@ -238,7 +238,7 @@ struct msm_gpu {
 	 */
 #define DRM_MSM_INACTIVE_PERIOD   66 /* in ms (roughly four frames) */
 
-#define DRM_MSM_HANGCHECK_DEFAULT_PERIOD 500 /* in ms */
+#define DRM_MSM_HANGCHECK_DEFAULT_PERIOD 5000 /* in ms */
 #define DRM_MSM_HANGCHECK_PROGRESS_RETRIES 3
 	struct timer_list hangcheck_timer;
 
@@ -264,6 +264,9 @@ struct msm_gpu {
 
 	/* True if the hardware supports expanded apriv (a650 and newer) */
 	bool hw_apriv;
+
+	/* True if system suspend/shutdown is in progress */
+	bool in_system_suspend;
 
 	/**
 	 * @allow_relocs: allow relocs in SUBMIT ioctl

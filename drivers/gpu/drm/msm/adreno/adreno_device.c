@@ -322,6 +322,16 @@ static int adreno_runtime_suspend(struct device *dev)
 	 */
 	WARN_ON_ONCE(gpu->active_submits);
 
+	/*
+	 * Adreno 320 runtime suspend/resume is highly unstable on some legacy
+	 * platforms, causing frequent GPU lockups on resume. Since system
+	 * shutdown warnings require system suspend to return success, we
+	 * only allow suspend during the system sleep/shutdown path (indicated
+	 * by the `in_system_suspend` flag), and reject normal runtime suspends.
+	 */
+	if (adreno_is_a320(to_adreno_gpu(gpu)) && !gpu->in_system_suspend)
+		return -EBUSY;
+
 	return gpu->funcs->pm_suspend(gpu);
 }
 
@@ -377,10 +387,13 @@ static int adreno_system_suspend(struct device *dev)
 		goto out;
 	}
 
+	gpu->in_system_suspend = true;
 	ret = pm_runtime_force_suspend(dev);
 out:
-	if (ret)
+	if (ret) {
+		gpu->in_system_suspend = false;
 		resume_scheduler(gpu);
+	}
 
 	return ret;
 }
@@ -388,12 +401,15 @@ out:
 static int adreno_system_resume(struct device *dev)
 {
 	struct msm_gpu *gpu = dev_to_gpu(dev);
+	int ret;
 
 	if (!gpu)
 		return 0;
 
 	resume_scheduler(gpu);
-	return pm_runtime_force_resume(dev);
+	ret = pm_runtime_force_resume(dev);
+	gpu->in_system_suspend = false;
+	return ret;
 }
 
 static const struct dev_pm_ops adreno_pm_ops = {
